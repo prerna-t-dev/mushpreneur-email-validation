@@ -1,14 +1,6 @@
 const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
-  // Only allow POST
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: "Method Not Allowed" })
-    };
-  }
-
   // Enable CORS
   const headers = {
     "Access-Control-Allow-Origin": "*", // In production, replace with your domain
@@ -16,12 +8,21 @@ exports.handler = async function(event, context) {
     "Access-Control-Allow-Methods": "POST, OPTIONS"
   };
 
-  // Handle preflight requests
+  // Handle preflight requests FIRST
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
       headers,
       body: ""
+    };
+  }
+
+  // Only allow POST
+  if (event.httpMethod !== "POST") {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: "Method Not Allowed" })
     };
   }
 
