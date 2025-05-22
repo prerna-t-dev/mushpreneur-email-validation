@@ -104,13 +104,92 @@ exports.handler = async function(event, context) {
 
     const zerobounceData = await zerobounceResponse.json();
     
+    // 3. Subscribe to Klaviyo List
+    const klaviyoApiKey = process.env.KLAVIYO_PUBLIC_API_KEY;
+    const klaviyoListId = process.env.KLAVIYO_LIST_ID;
+
+    const klaviyoUrl = `https://a.klaviyo.com/client/subscriptions?company_id=${klaviyoApiKey}`;
+    const klaviyoPayload = JSON.stringify({
+      data: {
+        type: "subscription",
+        attributes: {
+          profile: {
+            data: {
+              type: "profile",
+              attributes: {
+                email: email,
+                subscriptions: {
+                  email: {
+                    marketing: {
+                      consent: "SUBSCRIBED",
+                      consented_at: new Date().toISOString(),
+                    },
+                  },
+                },
+              },
+            },
+          },
+          custom_source: "Coming Soon",
+        },
+        relationships: {
+          list: {
+            data: {
+              type: "list",
+              id: klaviyoListId,
+            },
+          },
+        },
+      },
+    });
+
+    const klaviyoOptions = {
+      method: "POST",
+      headers: {
+        accept: "application/vnd.api+json",
+        "content-type": "application/vnd.api+json",
+        revision: "2025-01-15",
+      },
+      body: klaviyoPayload,
+    };
+
+    let klaviyoResult;
+    try {
+      const klaviyoResponse = await fetch(klaviyoUrl, klaviyoOptions);
+      const klaviyoText = await klaviyoResponse.text();
+      try {
+        klaviyoResult = JSON.parse(klaviyoText);
+      } catch {
+        klaviyoResult = { message: klaviyoText };
+      }
+      if (!klaviyoResponse.ok) {
+        return {
+          statusCode: klaviyoResponse.status,
+          headers,
+          body: JSON.stringify({
+            error: "Klaviyo API error",
+            detail: klaviyoResult,
+          }),
+        };
+      }
+    } catch (err) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          error: "Failed to subscribe to Klaviyo",
+          detail: err.message,
+        }),
+      };
+    }
+    
     // Combine ZeroBounce data with Turnstile success
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         ...zerobounceData,
-        turnstileSuccess: true
+        turnstileSuccess: true,
+        klaviyo: klaviyoResult,
       })
     };
   } catch (error) {
