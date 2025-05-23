@@ -104,6 +104,18 @@ exports.handler = async function(event, context) {
 
     const zerobounceData = await zerobounceResponse.json();
     
+    // Only proceed to Klaviyo if ZeroBounce says the email is valid
+    if (zerobounceData.status !== "valid") {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: "ZeroBounce validation failed",
+          zerobounce: zerobounceData
+        })
+      };
+    }
+    
     // 3. Subscribe to Klaviyo List
     const klaviyoApiKey = process.env.KLAVIYO_PUBLIC_API_KEY;
     const klaviyoListId = process.env.KLAVIYO_LIST_ID;
